@@ -138,7 +138,7 @@ export default function HwCoreAnalyzer() {
               <Lock size={20} color="#22c55e" style={{ marginBottom: '10px' }}/>
               <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffffff', marginBottom: '20px' }}>LIMITE JOURNALIÈRE ATTEINTE</p>
               <button 
-                onClick={() => window.location.href = 'COLLE_TON_LIEN_STRIPE_ICI'} 
+                onClick={() => window.location.href = 'https://buy.stripe.com/6oU3cv4UObGV5r56rW4c802'} 
                 style={{ background: '#ffffff', color: '#000000', padding: '15px', borderRadius: '8px', fontWeight: '900', border: 'none', cursor: 'pointer', width: '100%' }}
               >
                 PASSER AU VIP (9.99€)
