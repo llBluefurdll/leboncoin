@@ -168,7 +168,7 @@ export default function HwCoreAnalyzer() {
               </div>
               {!isVip && (
                 <button 
-                    onClick={() => window.location.href = 'COLLE_TON_LIEN_STRIPE_ICI'}
+                    onClick={() => window.location.href = 'https://buy.stripe.com/6oU3cv4UObGV5r56rW4c802'}
                     style={{ background: '#22c55e', color: '#000000', border: 'none', padding: '12px 25px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
                 >
                     DEVENIR VIP
