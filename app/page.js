@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Package, Cpu, MemoryStick, HardDrive, Layout, Wind, Power, Activity, Lock, User, CheckCircle2 } from 'lucide-react';
+import { Package, Cpu, MemoryStick, HardDrive, Layout, Wind, Power, Activity, Lock, User, CheckCircle2, X } from 'lucide-react';
 
 export default function HwCoreAnalyzer() {
   const [composants, setComposants] = useState([]);
@@ -9,6 +9,12 @@ export default function HwCoreAnalyzer() {
   const [isVip, setIsVip] = useState(false);
   const [freeAnalysesLeft, setFreeAnalysesLeft] = useState(0); 
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+
+  // États pour la modale d'authentification pro
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' ou 'signup'
+  const [authForm, setAuthForm] = useState({ email: '', password: '', confirmEmail: false });
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
 
   const [selection, setSelection] = useState({ 
     gpu: { prix: 0, nom: '' }, cpu: { prix: 0, nom: '' }, ram: { prix: 0, nom: '' }, 
@@ -31,7 +37,6 @@ export default function HwCoreAnalyzer() {
       }
       
       await checkIpUsage();
-      
       const { data } = await supabase.from('composants').select('*');
       if (data) setComposants(data);
       setIsLoadingStatus(false);
@@ -45,7 +50,6 @@ export default function HwCoreAnalyzer() {
       const { ip } = await res.json();
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase.from('usage_logs').select('id').eq('ip_address', ip).eq('created_at', today);
-      
       setFreeAnalysesLeft(!data || data.length === 0 ? 1 : 0);
     } catch (e) {
       setFreeAnalysesLeft(0);
@@ -54,31 +58,43 @@ export default function HwCoreAnalyzer() {
 
   const handlePayment = () => {
     if (!user) {
-      alert("Connectez-vous d'abord à l'étape 1 !");
+      setAuthMode('login');
+      setShowAuthModal(true);
       return;
     }
-    // TON NOUVEAU LIEN DE TEST (0.01€)
-    const stripeUrl = "https://buy.stripe.com/eVq7sLcngaCR5r5g2w4c803";
+    // MISE À JOUR : Nouveau lien Stripe à 9.99€
+    const stripeUrl = "https://buy.stripe.com/5kA3cv2MGaCR8DdeUX"; 
     window.location.href = `${stripeUrl}?client_reference_id=${user.id}`;
   };
 
-  const handleAuth = async () => {
-    if (user) {
-        if(confirm("Voulez-vous vous déconnecter ?")) {
-            await supabase.auth.signOut();
-            window.location.reload();
-        }
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    const { email, password, confirmEmail } = authForm;
+
+    if (authMode === 'signup') {
+      if (!confirmEmail) {
+        alert("Veuillez confirmer votre email avant de continuer.");
+        setIsAuthLoading(false);
         return;
-    }
-    const email = prompt("Votre Email :");
-    const password = prompt("Votre mot de passe (min. 6 caractères) :");
-    if(!email || !password) return;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) alert("Erreur : " + signUpError.message);
-      else alert("Compte créé ! Connectez-vous maintenant.");
+      }
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) alert(error.message);
+      else {
+        alert("Compte créé ! Connectez-vous maintenant.");
+        setAuthMode('login');
+      }
     } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) alert("Email ou mot de passe incorrect.");
+      else window.location.reload();
+    }
+    setIsAuthLoading(false);
+  };
+
+  const handleLogout = async () => {
+    if (confirm("Voulez-vous vous déconnecter ?")) {
+      await supabase.auth.signOut();
       window.location.reload();
     }
   };
@@ -91,7 +107,6 @@ export default function HwCoreAnalyzer() {
     try {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
-      
       runAnalysis();
       await supabase.from('usage_logs').insert([{ ip_address: ip }]);
       setFreeAnalysesLeft(0);
@@ -131,9 +146,20 @@ export default function HwCoreAnalyzer() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
           <h1 style={{ fontSize: '20px', fontWeight: '900', fontStyle: 'italic', textTransform: 'uppercase' }}>HWCORE ANALYZER</h1>
           <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={handleAuth} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#fff', padding: '8px 15px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <User size={14}/> {user ? user.email.split('@')[0].toUpperCase() : "CONNEXION"}
-            </button>
+            {user ? (
+              <button onClick={handleLogout} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#fff', padding: '8px 15px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <User size={14}/> {user.email.split('@')[0].toUpperCase()} (LOGOUT)
+              </button>
+            ) : (
+              <>
+                <button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} style={{ background: 'transparent', border: '1px solid #333', color: '#fff', padding: '8px 15px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  CONNEXION
+                </button>
+                <button onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }} style={{ background: '#fff', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  S'INSCRIRE
+                </button>
+              </>
+            )}
             <div style={{ background: isVip ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255,255,255,0.03)', padding: '8px 15px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', border: '1px solid #333', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Activity size={14} color={isVip ? "#22c55e" : "#fff"}/> 
               {isLoadingStatus ? "VÉRIF..." : isVip ? "VIP UNLIMITED" : `ESSAI : ${freeAnalysesLeft}/1`}
@@ -159,7 +185,7 @@ export default function HwCoreAnalyzer() {
           {isLoadingStatus ? (
              <button style={{ background: '#111', color: '#444', padding: '15px 50px', borderRadius: '8px', border: '1px solid #222', cursor: 'wait' }}>CHARGEMENT...</button>
           ) : results.show ? (
-            <div style={{ background: 'rgba(34, 197, 94, 0.05)', border: '1px solid #22c55e33', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease' }}>
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #333', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease' }}>
                 <p style={{ fontSize: '10px', opacity: 0.5, letterSpacing: '2px', marginBottom: '10px' }}>ESTIMATION DE REVENTE</p>
                 <h2 style={{ fontSize: '42px', fontWeight: '900', color: '#22c55e', margin: 0 }}>{results.revente}€</h2>
                 <div style={{ marginTop: '15px', padding: '10px', background: results.benefice >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', display: 'inline-block' }}>
@@ -185,7 +211,7 @@ export default function HwCoreAnalyzer() {
                   {user && <CheckCircle2 size={16} color="#22c55e" style={{ position: 'absolute', top: '10px', right: '10px' }}/>}
                   <p style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>ÉTAPE 1</p>
                   <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '15px' }}>{user ? "COMPTE CRÉÉ" : "CRÉER UN COMPTE"}</p>
-                  <button onClick={handleAuth} disabled={user} style={{ background: user ? 'transparent' : '#fff', color: user ? '#22c55e' : '#000', padding: '10px', borderRadius: '6px', width: '100%', border: user ? '1px solid #22c55e' : 'none', fontSize: '11px', fontWeight: 'bold', cursor: user ? 'default' : 'pointer' }}>
+                  <button onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }} disabled={user} style={{ background: user ? 'transparent' : '#fff', color: user ? '#22c55e' : '#000', padding: '10px', borderRadius: '6px', width: '100%', border: user ? '1px solid #22c55e' : 'none', fontSize: '11px', fontWeight: 'bold', cursor: user ? 'default' : 'pointer' }}>
                     {user ? "IDENTIFIÉ ✓" : "S'INSCRIRE"}
                   </button>
                 </div>
@@ -206,6 +232,55 @@ export default function HwCoreAnalyzer() {
           )}
         </div>
       </div>
+
+      {showAuthModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '16px', width: '100%', maxWidth: '400px', padding: '30px', position: 'relative', animation: 'fadeIn 0.3s ease' }}>
+            
+            <button onClick={() => setShowAuthModal(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
+              <X size={20} />
+            </button>
+
+            <h2 style={{ fontSize: '18px', fontWeight: '900', textAlign: 'center', marginBottom: '25px', letterSpacing: '2px' }}>
+              {authMode === 'login' ? 'CONNEXION' : 'INSCRIPTION'}
+            </h2>
+
+            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <input 
+                type="email" placeholder="Email" required
+                style={{ background: '#000', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                onChange={(e) => setAuthForm({...authForm, email: e.target.value})}
+              />
+              <input 
+                type="password" placeholder="Mot de passe" required
+                style={{ background: '#000', border: '1px solid #333', padding: '12px', borderRadius: '8px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                onChange={(e) => setAuthForm({...authForm, password: e.target.value})}
+              />
+
+              {authMode === 'signup' && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: '#aaa', cursor: 'pointer', padding: '5px 0' }}>
+                  <input type="checkbox" required onChange={(e) => setAuthForm({...authForm, confirmEmail: e.target.checked})} />
+                  Je confirme que mon email est correct
+                </label>
+              )}
+
+              <button type="submit" disabled={isAuthLoading} style={{ background: '#fff', color: '#000', padding: '12px', borderRadius: '8px', fontWeight: 'bold', border: 'none', marginTop: '10px', cursor: 'pointer', opacity: isAuthLoading ? 0.7 : 1 }}>
+                {isAuthLoading ? 'Chargement...' : authMode === 'login' ? 'Se connecter' : 'Créer mon compte'}
+              </button>
+            </form>
+
+            <p style={{ textAlign: 'center', fontSize: '12px', marginTop: '20px', color: '#666' }}>
+              {authMode === 'login' ? "Pas de compte ?" : "Déjà un compte ?"} 
+              <span 
+                onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+                style={{ color: '#fff', marginLeft: '5px', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {authMode === 'login' ? "S'inscrire" : "Se connecter"}
+              </span>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
