@@ -28,10 +28,10 @@ export default function HwCoreAnalyzer() {
         setUser(user);
         const { data: profile } = await supabase.from('profiles').select('is_vip').eq('id', user.id).single();
         if (profile?.is_vip) setIsVip(true);
-        await checkIpUsage();
-      } else {
-        await checkIpUsage();
       }
+      
+      // On vérifie l'IP dans tous les cas pour savoir s'il reste l'essai gratuit
+      await checkIpUsage();
       
       const { data } = await supabase.from('composants').select('*');
       if (data) setComposants(data);
@@ -46,10 +46,21 @@ export default function HwCoreAnalyzer() {
       const { ip } = await res.json();
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase.from('usage_logs').select('id').eq('ip_address', ip).eq('created_at', today);
+      
+      // S'il n'y a pas de log aujourd'hui, il reste 1 essai, sinon 0.
       setFreeAnalysesLeft(!data || data.length === 0 ? 1 : 0);
     } catch (e) {
       setFreeAnalysesLeft(0);
     }
+  };
+
+  const handlePayment = () => {
+    if (!user) {
+      alert("Connectez-vous d'abord à l'étape 1 !");
+      return;
+    }
+    const stripeUrl = "https://buy.stripe.com/6oU3cv4UObGV5r56rW4c802";
+    window.location.href = `${stripeUrl}?client_reference_id=${user.id}`;
   };
 
   const handleAuth = async () => {
@@ -63,7 +74,7 @@ export default function HwCoreAnalyzer() {
     const email = prompt("Votre Email :");
     const password = prompt("Votre mot de passe (min. 6 caractères) :");
     if(!email || !password) return;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       const { error: signUpError } = await supabase.auth.signUp({ email, password });
       if (signUpError) alert("Erreur : " + signUpError.message);
@@ -75,29 +86,38 @@ export default function HwCoreAnalyzer() {
 
   const handleAnalyze = async () => {
     if (isVip) { runAnalysis(); return; }
+    
+    // Si déjà utilisé et pas VIP, on bloque le bouton
+    if (freeAnalysesLeft <= 0) return;
+
     setIsAnalyzing(true);
     try {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
-      const today = new Date().toISOString().split('T')[0];
-      const { data: usage } = await supabase.from('usage_logs').select('id').eq('ip_address', ip).eq('created_at', today);
-      if (usage && usage.length > 0) {
-        setFreeAnalysesLeft(0);
-        setIsAnalyzing(false);
-        return;
-      }
-      await supabase.from('usage_logs').insert([{ ip_address: ip }]);
+      
+      // On lance l'analyse d'abord pour que results.show passe à true
       runAnalysis();
-    } catch (err) { runAnalysis(); }
+
+      // On enregistre l'IP dans Supabase pour consommer l'essai
+      await supabase.from('usage_logs').insert([{ ip_address: ip }]);
+      
+      // On met à jour l'état local
+      setFreeAnalysesLeft(0);
+    } catch (err) { 
+      runAnalysis(); 
+    }
   };
 
   const runAnalysis = () => {
     setTimeout(() => {
       const totalPieces = Object.values(selection).reduce((acc, curr) => acc + (curr.prix || 0), 0);
       const prixRevente = totalPieces * 0.9;
-      setResults({ benefice: Math.round(prixRevente - prixAchat), revente: Math.round(prixRevente), show: true });
+      setResults({ 
+        benefice: Math.round(prixRevente - prixAchat), 
+        revente: Math.round(prixRevente), 
+        show: true 
+      });
       setIsAnalyzing(false);
-      if (!isVip) setFreeAnalysesLeft(0);
     }, 1200); 
   };
 
@@ -146,11 +166,28 @@ export default function HwCoreAnalyzer() {
 
           {isLoadingStatus ? (
              <button style={{ background: '#111', color: '#444', padding: '15px 50px', borderRadius: '8px', border: '1px solid #222', cursor: 'wait' }}>CHARGEMENT...</button>
+          ) : results.show ? (
+            /* AFFICHAGE DU RÉSULTAT */
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #333', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease' }}>
+                <p style={{ fontSize: '10px', opacity: 0.5, letterSpacing: '2px', marginBottom: '10px' }}>ESTIMATION DE REVENTE</p>
+                <h2 style={{ fontSize: '42px', fontWeight: '900', color: '#22c55e', margin: 0 }}>{results.revente}€</h2>
+                <div style={{ marginTop: '15px', padding: '10px', background: results.benefice >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', display: 'inline-block' }}>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: results.benefice >= 0 ? '#22c55e' : '#ef4444' }}>
+                        Bénéfice : {results.benefice}€
+                    </p>
+                </div>
+                {!isVip && (
+                    <p style={{ fontSize: '11px', color: '#666', marginTop: '20px' }}>
+                        C'était votre essai gratuit. Pour d'autres analyses, passez VIP.
+                    </p>
+                )}
+            </div>
           ) : (!isVip && freeAnalysesLeft === 0) ? (
-            <div style={{ background: '#080808', border: '1px solid #22c55e', padding: '30px', borderRadius: '16px', width: '100%', animation: 'slideUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            /* ENCART VIP SI PLUS D'ESSAIS */
+            <div style={{ border: '1px solid #22c55e33', background: 'rgba(0,0,0,0.3)', padding: '30px', borderRadius: '16px', width: '100%', animation: 'slideUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                 <Lock size={18} color="#22c55e"/>
-                <p style={{ fontSize: '14px', fontWeight: 'bold', letterSpacing: '1px' }}>ACCÈS LIMITÉ — PASSEZ AU NIVEAU SUPÉRIEUR</p>
+                <p style={{ fontSize: '14px', fontWeight: '900', letterSpacing: '1px' }}>ACCÈS LIMITÉ — PASSEZ AU VIP</p>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
@@ -159,33 +196,31 @@ export default function HwCoreAnalyzer() {
                   <p style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>ÉTAPE 1</p>
                   <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '15px' }}>{user ? "COMPTE CRÉÉ" : "CRÉER UN COMPTE"}</p>
                   <button onClick={handleAuth} disabled={user} style={{ background: user ? 'transparent' : '#fff', color: user ? '#22c55e' : '#000', padding: '10px', borderRadius: '6px', width: '100%', border: user ? '1px solid #22c55e' : 'none', fontSize: '11px', fontWeight: 'bold', cursor: user ? 'default' : 'pointer' }}>
-                    {user ? "IDENTIFIÉ" : "S'INSCRIRE"}
+                    {user ? "IDENTIFIÉ ✓" : "S'INSCRIRE"}
                   </button>
                 </div>
 
-                <div style={{ background: 'rgba(34, 197, 94, 0.05)', border: '1px solid #22c55e', padding: '20px', borderRadius: '12px', textAlign: 'left' }}>
-                  <p style={{ fontSize: '10px', color: '#22c55e', opacity: 0.6, marginBottom: '5px' }}>ÉTAPE 2</p>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid #222', padding: '20px', borderRadius: '12px', textAlign: 'left' }}>
+                  <p style={{ fontSize: '10px', color: '#666', marginBottom: '5px' }}>ÉTAPE 2</p>
                   <p style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '15px' }}>ACCÈS ILLIMITÉ</p>
-                  <button onClick={() => window.location.href = 'https://buy.stripe.com/6oU3cv4UObGV5r56rW4c802'} style={{ background: '#22c55e', color: '#000', padding: '10px', borderRadius: '6px', width: '100%', border: 'none', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    PASSER VIP (9.99€)
+                  <button onClick={handlePayment} style={{ background: '#fff', color: '#000', padding: '10px', borderRadius: '6px', width: '100%', border: 'none', fontSize: '11px', fontWeight: '900', cursor: 'pointer' }}>
+                    PASSER VIP
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            /* BOUTON REPASSE EN GRIS SOMBRE */
+            /* BOUTON ANALYSER */
             <button onClick={handleAnalyze} disabled={isAnalyzing} style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #333', padding: '15px 50px', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', opacity: isAnalyzing ? 0.5 : 1 }}>
               {isAnalyzing ? "ANALYSE..." : "ANALYSER LE SETUP"}
             </button>
           )}
         </div>
       </div>
-      {/* ... SearchableSelect reste identique ... */}
     </div>
   );
 }
 
-// Fonction SearchableSelect...
 function SearchableSelect({ label, data, onSelect, icon }) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
