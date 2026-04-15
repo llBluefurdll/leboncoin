@@ -30,7 +30,6 @@ export default function HwCoreAnalyzer() {
         if (profile?.is_vip) setIsVip(true);
       }
       
-      // On vérifie l'IP dans tous les cas pour savoir s'il reste l'essai gratuit
       await checkIpUsage();
       
       const { data } = await supabase.from('composants').select('*');
@@ -47,7 +46,6 @@ export default function HwCoreAnalyzer() {
       const today = new Date().toISOString().split('T')[0];
       const { data } = await supabase.from('usage_logs').select('id').eq('ip_address', ip).eq('created_at', today);
       
-      // S'il n'y a pas de log aujourd'hui, il reste 1 essai, sinon 0.
       setFreeAnalysesLeft(!data || data.length === 0 ? 1 : 0);
     } catch (e) {
       setFreeAnalysesLeft(0);
@@ -59,7 +57,8 @@ export default function HwCoreAnalyzer() {
       alert("Connectez-vous d'abord à l'étape 1 !");
       return;
     }
-    const stripeUrl = "https://buy.stripe.com/6oU3cv4UObGV5r56rW4c802";
+    // TON NOUVEAU LIEN DE TEST (0.01€)
+    const stripeUrl = "https://buy.stripe.com/eVq7sLcngaCR5r5g2w4c803";
     window.location.href = `${stripeUrl}?client_reference_id=${user.id}`;
   };
 
@@ -86,8 +85,6 @@ export default function HwCoreAnalyzer() {
 
   const handleAnalyze = async () => {
     if (isVip) { runAnalysis(); return; }
-    
-    // Si déjà utilisé et pas VIP, on bloque le bouton
     if (freeAnalysesLeft <= 0) return;
 
     setIsAnalyzing(true);
@@ -95,13 +92,8 @@ export default function HwCoreAnalyzer() {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
       
-      // On lance l'analyse d'abord pour que results.show passe à true
       runAnalysis();
-
-      // On enregistre l'IP dans Supabase pour consommer l'essai
       await supabase.from('usage_logs').insert([{ ip_address: ip }]);
-      
-      // On met à jour l'état local
       setFreeAnalysesLeft(0);
     } catch (err) { 
       runAnalysis(); 
@@ -167,8 +159,7 @@ export default function HwCoreAnalyzer() {
           {isLoadingStatus ? (
              <button style={{ background: '#111', color: '#444', padding: '15px 50px', borderRadius: '8px', border: '1px solid #222', cursor: 'wait' }}>CHARGEMENT...</button>
           ) : results.show ? (
-            /* AFFICHAGE DU RÉSULTAT */
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #333', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease' }}>
+            <div style={{ background: 'rgba(34, 197, 94, 0.05)', border: '1px solid #22c55e33', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease' }}>
                 <p style={{ fontSize: '10px', opacity: 0.5, letterSpacing: '2px', marginBottom: '10px' }}>ESTIMATION DE REVENTE</p>
                 <h2 style={{ fontSize: '42px', fontWeight: '900', color: '#22c55e', margin: 0 }}>{results.revente}€</h2>
                 <div style={{ marginTop: '15px', padding: '10px', background: results.benefice >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', display: 'inline-block' }}>
@@ -183,7 +174,6 @@ export default function HwCoreAnalyzer() {
                 )}
             </div>
           ) : (!isVip && freeAnalysesLeft === 0) ? (
-            /* ENCART VIP SI PLUS D'ESSAIS */
             <div style={{ border: '1px solid #22c55e33', background: 'rgba(0,0,0,0.3)', padding: '30px', borderRadius: '16px', width: '100%', animation: 'slideUp 0.3s ease', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                 <Lock size={18} color="#22c55e"/>
@@ -210,7 +200,6 @@ export default function HwCoreAnalyzer() {
               </div>
             </div>
           ) : (
-            /* BOUTON ANALYSER */
             <button onClick={handleAnalyze} disabled={isAnalyzing} style={{ background: '#1a1a1a', color: '#fff', border: '1px solid #333', padding: '15px 50px', borderRadius: '8px', fontWeight: '900', cursor: 'pointer', opacity: isAnalyzing ? 0.5 : 1 }}>
               {isAnalyzing ? "ANALYSE..." : "ANALYSER LE SETUP"}
             </button>
