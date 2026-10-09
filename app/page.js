@@ -10,9 +10,8 @@ export default function HwCoreAnalyzer() {
   const [freeAnalysesLeft, setFreeAnalysesLeft] = useState(0); 
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
-  // États pour la modale d'authentification pro
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); // 'login' ou 'signup'
+  const [authMode, setAuthMode] = useState('login');
   const [authForm, setAuthForm] = useState({ email: '', password: '', confirmEmail: false });
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
@@ -32,42 +31,24 @@ export default function HwCoreAnalyzer() {
       
       if (user) {
         setUser(user);
-        const { data: profile } = await supabase.from('profiles').select('is_vip').eq('id', user.id).single();
-        if (profile?.is_vip) setIsVip(true);
+        // Charger le profil unique de l'utilisateur
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (profile) {
+          if (profile.is_vip) setIsVip(true);
+          setFreeAnalysesLeft(profile.free_analyses_left ?? 0);
+        }
+      } else {
+        // Mode invités/non connectés : 1 essai gratuit local
+        const hasUsed = localStorage.getItem('hw_guest_analyzed');
+        setFreeAnalysesLeft(hasUsed ? 0 : 1);
       }
       
-      await checkIpUsage();
       const { data } = await supabase.from('composants').select('*');
       if (data) setComposants(data);
       setIsLoadingStatus(false);
     };
     initApp();
   }, []);
-
-  const checkIpUsage = async () => {
-    try {
-      const res = await fetch('https://api.ipify.org?format=json');
-      const { ip } = await res.json();
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data, error } = await supabase
-        .from('usage_logs')
-        .select('id')
-        .eq('ip_address', ip)
-        .gte('created_at', today);
-
-      if (error) {
-        console.error("Erreur checkIpUsage:", error);
-        setFreeAnalysesLeft(0);
-        return;
-      }
-
-      setFreeAnalysesLeft(!data || data.length === 0 ? 1 : 0);
-    } catch (e) {
-      console.error("Erreur d'obtention de l'IP:", e);
-      setFreeAnalysesLeft(0);
-    }
-  };
 
   const handlePayment = () => {
     if (!user) {
@@ -122,16 +103,14 @@ export default function HwCoreAnalyzer() {
     setIsAnalyzing(true);
     setFreeAnalysesLeft(0);
 
-    try {
-      const ipRes = await fetch('https://api.ipify.org?format=json');
-      const { ip } = await ipRes.json();
-
-      await supabase.from('usage_logs').insert([{ ip_address: ip }]);
-      runAnalysis();
-    } catch (err) { 
-      console.error("Erreur réseau/IP:", err);
-      runAnalysis(); 
+    if (user) {
+      // Décrémenter l'essai directement dans la ligne 'profiles' de l'utilisateur
+      await supabase.from('profiles').update({ free_analyses_left: 0 }).eq('id', user.id);
+    } else {
+      localStorage.setItem('hw_guest_analyzed', 'true');
     }
+
+    runAnalysis();
   };
 
   const runAnalysis = () => {
@@ -216,10 +195,10 @@ export default function HwCoreAnalyzer() {
                 {!isVip && (
                   <div style={{ marginTop: '15px', paddingTop: '20px', borderTop: '1px solid #222', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                     <p style={{ fontSize: '12px', color: '#22c55e', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Sparkles size={16}/> C'était votre seul essai gratuit du jour.
+                      <Sparkles size={16}/> Essai gratuit utilisé.
                     </p>
                     <p style={{ fontSize: '11px', color: '#aaa', margin: 0 }}>
-                      Pour effectuer des analyses illimitées, débloquez l'accès VIP.
+                      Débloquez l'accès VIP pour effectuer des analyses illimitées.
                     </p>
                     <button onClick={handlePayment} style={{ background: '#22c55e', color: '#000', padding: '12px 25px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '900', cursor: 'pointer', marginTop: '5px' }}>
                       PASSER VIP MAINTENANT
