@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Package, Cpu, MemoryStick, HardDrive, Layout, Wind, Power, Activity, Lock, User, CheckCircle2, X } from 'lucide-react';
+import { Package, Cpu, MemoryStick, HardDrive, Layout, Wind, Power, Activity, Lock, User, CheckCircle2, X, Sparkles } from 'lucide-react';
 
 export default function HwCoreAnalyzer() {
   const [composants, setComposants] = useState([]);
@@ -50,7 +50,6 @@ export default function HwCoreAnalyzer() {
       const { ip } = await res.json();
       const today = new Date().toISOString().split('T')[0];
       
-      // Vérifier si l'IP a déjà fait une analyse aujourd'hui
       const { data, error } = await supabase
         .from('usage_logs')
         .select('id')
@@ -121,19 +120,13 @@ export default function HwCoreAnalyzer() {
     if (freeAnalysesLeft <= 0) return;
 
     setIsAnalyzing(true);
-    setFreeAnalysesLeft(0); // Bloquer immédiatement l'état local
+    setFreeAnalysesLeft(0);
 
     try {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
 
-      // Enregistrer l'utilisation en base de données AVANT d'afficher les résultats
-      const { error } = await supabase.from('usage_logs').insert([{ ip_address: ip }]);
-      
-      if (error) {
-        console.error("Erreur lors de l'enregistrement de l'IP:", error);
-      }
-
+      await supabase.from('usage_logs').insert([{ ip_address: ip }]);
       runAnalysis();
     } catch (err) { 
       console.error("Erreur réseau/IP:", err);
@@ -211,18 +204,27 @@ export default function HwCoreAnalyzer() {
           {isLoadingStatus ? (
              <button style={{ background: '#111', color: '#444', padding: '15px 50px', borderRadius: '8px', border: '1px solid #222', cursor: 'wait' }}>CHARGEMENT...</button>
           ) : results.show ? (
-            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #333', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease' }}>
-                <p style={{ fontSize: '10px', opacity: 0.5, letterSpacing: '2px', marginBottom: '10px' }}>ESTIMATION DE REVENTE</p>
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #333', padding: '30px', borderRadius: '16px', width: '100%', animation: 'fadeIn 0.5s ease', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                <p style={{ fontSize: '10px', opacity: 0.5, letterSpacing: '2px', margin: 0 }}>ESTIMATION DE REVENTE</p>
                 <h2 style={{ fontSize: '42px', fontWeight: '900', color: '#22c55e', margin: 0 }}>{results.revente}€</h2>
-                <div style={{ marginTop: '15px', padding: '10px', background: results.benefice >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderRadius: '6px', display: 'inline-block' }}>
+                <div style={{ padding: '10px 20px', background: results.benefice >= 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', borderRadius: '6px' }}>
                     <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: results.benefice >= 0 ? '#22c55e' : '#ef4444' }}>
                         Bénéfice : {results.benefice}€
                     </p>
                 </div>
+
                 {!isVip && (
-                    <p style={{ fontSize: '11px', color: '#666', marginTop: '20px' }}>
-                        C'était votre essai gratuit du jour. Pour d'autres analyses, passez VIP.
+                  <div style={{ marginTop: '15px', paddingTop: '20px', borderTop: '1px solid #222', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <p style={{ fontSize: '12px', color: '#22c55e', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Sparkles size={16}/> C'était votre seul essai gratuit du jour.
                     </p>
+                    <p style={{ fontSize: '11px', color: '#aaa', margin: 0 }}>
+                      Pour effectuer des analyses illimitées, débloquez l'accès VIP.
+                    </p>
+                    <button onClick={handlePayment} style={{ background: '#22c55e', color: '#000', padding: '12px 25px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '900', cursor: 'pointer', marginTop: '5px' }}>
+                      PASSER VIP MAINTENANT
+                    </button>
+                  </div>
                 )}
             </div>
           ) : (!isVip && freeAnalysesLeft === 0) ? (
