@@ -49,9 +49,23 @@ export default function HwCoreAnalyzer() {
       const res = await fetch('https://api.ipify.org?format=json');
       const { ip } = await res.json();
       const today = new Date().toISOString().split('T')[0];
-      const { data } = await supabase.from('usage_logs').select('id').eq('ip_address', ip).eq('created_at', today);
+      
+      // Vérifier si l'IP a déjà fait une analyse aujourd'hui
+      const { data, error } = await supabase
+        .from('usage_logs')
+        .select('id')
+        .eq('ip_address', ip)
+        .gte('created_at', today);
+
+      if (error) {
+        console.error("Erreur checkIpUsage:", error);
+        setFreeAnalysesLeft(0);
+        return;
+      }
+
       setFreeAnalysesLeft(!data || data.length === 0 ? 1 : 0);
     } catch (e) {
+      console.error("Erreur d'obtention de l'IP:", e);
       setFreeAnalysesLeft(0);
     }
   };
@@ -62,7 +76,6 @@ export default function HwCoreAnalyzer() {
       setShowAuthModal(true);
       return;
     }
-    // MISE À JOUR : Nouveau lien Stripe à 9.99€
     const stripeUrl = "https://buy.stripe.com/5kA3cv2MGaCR8DdeUX"; 
     window.location.href = `${stripeUrl}?client_reference_id=${user.id}`;
   };
@@ -100,17 +113,30 @@ export default function HwCoreAnalyzer() {
   };
 
   const handleAnalyze = async () => {
-    if (isVip) { runAnalysis(); return; }
+    if (isVip) { 
+      runAnalysis(); 
+      return; 
+    }
+
     if (freeAnalysesLeft <= 0) return;
 
     setIsAnalyzing(true);
+    setFreeAnalysesLeft(0); // Bloquer immédiatement l'état local
+
     try {
       const ipRes = await fetch('https://api.ipify.org?format=json');
       const { ip } = await ipRes.json();
+
+      // Enregistrer l'utilisation en base de données AVANT d'afficher les résultats
+      const { error } = await supabase.from('usage_logs').insert([{ ip_address: ip }]);
+      
+      if (error) {
+        console.error("Erreur lors de l'enregistrement de l'IP:", error);
+      }
+
       runAnalysis();
-      await supabase.from('usage_logs').insert([{ ip_address: ip }]);
-      setFreeAnalysesLeft(0);
     } catch (err) { 
+      console.error("Erreur réseau/IP:", err);
       runAnalysis(); 
     }
   };
@@ -195,7 +221,7 @@ export default function HwCoreAnalyzer() {
                 </div>
                 {!isVip && (
                     <p style={{ fontSize: '11px', color: '#666', marginTop: '20px' }}>
-                        C'était votre essai gratuit. Pour d'autres analyses, passez VIP.
+                        C'était votre essai gratuit du jour. Pour d'autres analyses, passez VIP.
                     </p>
                 )}
             </div>
