@@ -135,15 +135,21 @@ export default function HwCoreAnalyzer() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #000 0%, #1a1a1a 100%)', color: '#fff', fontFamily: 'sans-serif', padding: '20px 15px 100px 15px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #000 0%, #1a1a1a 100%)', color: '#fff', fontFamily: 'sans-serif', padding: '20px 15px 140px 15px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box', overflowY: 'auto' }}>
       
-      {/* CSS d'adaptation mobile */}
+      {/* CSS Responsive optimisé pour téléphones */}
       <style jsx global>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          background-color: #000;
+          overflow-x: hidden;
+        }
         .grid-selecteurs {
           display: grid;
           grid-template-columns: 1fr;
           gap: 12px;
-          margin-bottom: 30px;
+          margin-bottom: 25px;
         }
         .step-cards {
           display: grid;
@@ -155,7 +161,7 @@ export default function HwCoreAnalyzer() {
           flex-direction: column;
           align-items: center;
           gap: 15px;
-          margin-bottom: 30px;
+          margin-bottom: 25px;
         }
         @media (min-width: 640px) {
           .grid-selecteurs {
@@ -203,7 +209,7 @@ export default function HwCoreAnalyzer() {
           ))}
         </div>
 
-        <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: '30px', textAlign: 'center', maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+        <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: '25px', textAlign: 'center', maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center', paddingBottom: '30px' }}>
           <div>
             <p style={{ fontSize: '10px', fontWeight: 'bold', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '3px', marginBottom: '10px' }}>Investissement</p>
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
@@ -273,8 +279,8 @@ export default function HwCoreAnalyzer() {
       </div>
 
       {showAuthModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
-          <div style={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '16px', width: '100%', maxWidth: '380px', padding: '25px', position: 'relative', boxSizing: 'border-box' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px', overflowY: 'auto' }}>
+          <div style={{ backgroundColor: '#111', border: '1px solid #333', borderRadius: '16px', width: '100%', maxWidth: '380px', padding: '25px', position: 'relative', boxSizing: 'border-box', maxHeight: '90vh', overflowY: 'auto' }}>
             
             <button onClick={() => setShowAuthModal(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}>
               <X size={20} />
@@ -339,7 +345,7 @@ function SearchableSelect({ label, data, onSelect, icon }) {
         </div>
       </div>
       {isOpen && (
-        <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#0a0a0a', border: '1px solid #333', borderRadius: '8px', maxHeight: '200px', overflowY: 'auto', zIndex: 200, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+        <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, background: '#0a0a0a', border: '1px solid #333', borderRadius: '8px', maxHeight: '180px', overflowY: 'auto', zIndex: 200, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
           {filtered.length > 0 ? filtered.map(item => (
             <div key={item.id} style={{ padding: '10px 12px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', fontSize: '12px' }} onMouseEnter={(e) => e.currentTarget.style.background = '#1a1a1a'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'} onClick={(e) => { e.stopPropagation(); onSelect(item); setQuery(`${item.nom} (${item.prix}€)`); setIsOpen(false); }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
