@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Package, Cpu, MemoryStick, HardDrive, Layout, Wind, Power, Activity, Lock, User, CheckCircle2, X, Sparkles } from 'lucide-react';
+import { Package, Cpu, MemoryStick, HardDrive, Layout, Wind, Power, Activity, Lock, User, CheckCircle2, X, Sparkles, Info } from 'lucide-react';
 
 export default function HwCoreAnalyzer() {
   const [composants, setComposants] = useState([]);
@@ -137,7 +137,6 @@ export default function HwCoreAnalyzer() {
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #000 0%, #1a1a1a 100%)', color: '#fff', fontFamily: 'sans-serif', padding: '20px 15px 140px 15px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box', overflowY: 'auto' }}>
       
-      {/* CSS Responsive optimisé pour téléphones */}
       <style jsx global>{`
         html, body {
           margin: 0;
@@ -161,7 +160,7 @@ export default function HwCoreAnalyzer() {
           flex-direction: column;
           align-items: center;
           gap: 15px;
-          margin-bottom: 25px;
+          margin-bottom: 20px;
         }
         @media (min-width: 640px) {
           .grid-selecteurs {
@@ -202,6 +201,14 @@ export default function HwCoreAnalyzer() {
             </div>
           </div>
         </header>
+
+        {/* Note d'information pour l'utilisateur */}
+        <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid #222', borderRadius: '8px', padding: '10px 14px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Info size={16} color="#aaa" style={{ flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: '11px', color: '#aaa', lineHeight: '1.4' }}>
+            Si le composant précis n'apparaît pas, prenez celui qui s'en rapproche le plus.
+          </p>
+        </div>
 
         <div className="grid-selecteurs">
           {selecteurs.map(s => (
