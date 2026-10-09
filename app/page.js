@@ -54,7 +54,7 @@ export default function HwCoreAnalyzer() {
       setShowAuthModal(true);
       return;
     }
-    const stripeUrl = "https://buy.stripe.com/7sY00jbjc6mB6v903y4c804"; 
+    const stripeUrl = "https://buy.stripe.com/aFa3cvdrkaCRbPt4jO4c806"; 
     window.location.href = `${stripeUrl}?client_reference_id=${user.id}`;
   };
 
